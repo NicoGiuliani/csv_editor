@@ -12,38 +12,35 @@ last_uploaded_csv_data = None
 initial = 0
 headers = []
 ascending = {}
+most_recent_search_results = {}
+filename = ""
 
 
 def home(request):
     global last_uploaded_csv_data
     global initial
     global headers
+    global most_recent_search_results
+    global filename
+
     df = last_uploaded_csv_data
     context = {}
 
+    most_recent_search_results = None
+
     if df is not None:
-      json_string = df.to_json(orient="records")
-      json_data = json.loads(json_string)
+        json_string = df.to_json(orient="records")
+        json_data = json.loads(json_string)
 
-      # headers = df.columns.tolist()
-      # headers.insert(0, "Unique Index")
-      # headers.insert(0, "Delete")
-      # headers.insert(0, "Edit")
-
-      # final_data = []
-      # for entry in json_data:
-      #   dictionary = {}
-      #   data_headers = []
-        # for header in headers:
-            # header_joined = "_".join(header.lower().split(' '))
-            # data_headers.append(header_joined)
-            # dictionary[header] = str(entry[header])
-        # final_data.append(dictionary)
-
-      # new_df = pd.DataFrame(final_data)
-      # last_uploaded_csv_data = new_df
-    
-      context = {"display_headers": headers, "data": json_data, "initial": initial}
+        context = {
+            "display_headers": headers,
+            "data": json_data,
+            "initial": initial,
+            "filename": filename,
+            "searchFiltersActive": True
+            if most_recent_search_results is not None
+            else False,
+        }
 
     return render(request, "index.html", context)
 
@@ -57,14 +54,14 @@ def export(request):
     global initial
 
     if last_uploaded_csv_data is None:
-       return redirect("/")
+        return redirect("/")
 
     # Specify the file path where you want to save the CSV file
     csv_file_path = "output_file.csv"
     df = last_uploaded_csv_data
 
     # Columns to ignore
-    columns_to_ignore = ['unique_index']
+    columns_to_ignore = ["unique_index"]
 
     # Create a new DataFrame without the specified columns
     df_without_columns = df.drop(columns=columns_to_ignore)
@@ -79,7 +76,9 @@ def export(request):
     print(f"DataFrame has been exported to {csv_file_path}")
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="export.csv"'
-    df_without_columns.to_csv(path_or_buf=response, index=False)  # with other applicable parameters
+    df_without_columns.to_csv(
+        path_or_buf=response, index=False
+    )  # with other applicable parameters
     return response
 
 
@@ -87,8 +86,21 @@ def delete(request, id):
     global last_uploaded_csv_data
     global initial
     global headers
+    global most_recent_search_results
+    global filename
 
     df = last_uploaded_csv_data
+    print("here")
+
+    # if most_recent_search_results is not None:
+    #   print("now here")
+    #   json_data = most_recent_search_results
+    #   most_recent_dataframe = pd.DataFrame(most_recent_search_results)
+    #   most_recent_df = most_recent_dataframe.drop(df[df["unique_index"] == int(id)].index)
+    #   most_recent_df = most_recent_df.drop(df[df["unique_index"] == id].index)
+    #   json_string = most_recent_df.to_json(orient="records")
+    #   json_data = json.loads(json_string)
+
     print(df)
     print("Boom:", type(id))
     print("Bing:", id)
@@ -96,23 +108,43 @@ def delete(request, id):
     df = df.drop(df[df["unique_index"] == id].index)
     print("Deleted ID:", id)
 
-    # headers = df.columns.tolist()
-    # headers.insert(0, "Unique Index")
-    # headers.insert(0, "Delete")
-    # headers.insert(0, "Edit")
-    
     last_uploaded_csv_data = df
+
+    # if most_recent_search_results is None:
     json_string = df.to_json(orient="records")
     json_data = json.loads(json_string)
-      
-    context = {"display_headers": headers, "data": json_data, "initial": initial}
+
+    if most_recent_search_results is not None:
+        print("filtered")
+        df = pd.DataFrame(most_recent_search_results)
+        df = df.drop(df[df["unique_index"] == int(id)].index)
+        df = df.drop(df[df["unique_index"] == id].index)
+        print(df)
+        json_string = df.to_json(orient="records")
+        json_data = json.loads(json_string)
+        most_recent_search_results = json_data
+        if len(json_data) == 0:
+            return redirect("/")
+
+    context = {
+        "display_headers": headers,
+        "data": json_data,
+        "initial": initial,
+        "filename": filename,
+        "searchFiltersActive": True
+        if most_recent_search_results is not None
+        else False,
+    }
     return render(request, "index.html", context)
 
 
 def edit(request, id):
     global last_uploaded_csv_data
     global initial
-    global headers 
+    global headers
+    global filename
+    global most_recent_search_results
+
     print("edit")
     df = last_uploaded_csv_data
     print(df)
@@ -130,7 +162,19 @@ def edit(request, id):
     json_to_edit_data = json.loads(to_edit_json_string)
     print(json_to_edit_data)
 
-    context = {"display_headers": headers, "data": json_data, "to_edit": json_to_edit_data[0], "initial": initial}
+    if most_recent_search_results is not None:
+        json_data = most_recent_search_results
+
+    context = {
+        "display_headers": headers,
+        "data": json_data,
+        "to_edit": json_to_edit_data[0],
+        "initial": initial,
+        "filename": filename,
+        "searchFiltersActive": True
+        if most_recent_search_results is not None
+        else False,
+    }
     return render(request, "index.html", context)
 
 
@@ -138,19 +182,22 @@ def create(request):
     global last_uploaded_csv_data
     global initial
     global headers
+    global filename
+    global most_recent_search_results
+
+    most_recent_search_results = None
 
     if request.method == "POST":
         post_data = request.POST
         new_data = {}
-      
+
         for entry in post_data:
-          if entry == "csrfmiddlewaretoken":
-              continue
-          new_data[entry] = post_data.get(entry)
+            if entry == "csrfmiddlewaretoken":
+                continue
+            new_data[entry] = post_data.get(entry)
 
         new_data["unique_index"] = int(new_data["unique_index"])
         print("new_data:", new_data)
-
 
         df = last_uploaded_csv_data
         # headers = df.columns.tolist()
@@ -162,54 +209,90 @@ def create(request):
 
         print("json_data:", json_data)
         initial += 1
-        context = {"data": json_data, "display_headers": headers, "initial": initial}
+        context = {
+            "data": json_data,
+            "display_headers": headers,
+            "initial": initial,
+            "filename": filename,
+            "searchFiltersActive": True
+            if most_recent_search_results is not None
+            else False,
+        }
 
     return render(request, "index.html", context)
 
 
 def update(request):
-  global last_uploaded_csv_data
-  global initial
-  global headers
+    global last_uploaded_csv_data
+    global initial
+    global headers
+    global filename
+    global most_recent_search_results
 
-  if request.method == "POST":
-      post_data = request.POST
-      new_data = {}
-      
-      for entry in post_data:
-        if entry == "csrfmiddlewaretoken":
-            continue
-        new_data[entry] = post_data.get(entry)
-      
-      keys = list(new_data.keys())
+    if request.method == "POST":
+        post_data = request.POST
+        new_data = {}
 
-      df = last_uploaded_csv_data
-      i = new_data["unique_index"]
-      underscored_headers = df.columns.tolist()
-      json_string = df.to_json(orient="records")
-      json_data = json.loads(json_string)
+        for entry in post_data:
+            if entry == "csrfmiddlewaretoken":
+                continue
+            new_data[entry] = post_data.get(entry)
 
+        keys = list(new_data.keys())
 
-      df.loc[df["unique_index"] == int(i), underscored_headers] = list(map(lambda x: new_data[x], underscored_headers))
-      df.loc[df["unique_index"] == i, "unique_index"] = int(i)
+        df = last_uploaded_csv_data
+        i = new_data["unique_index"]
+        underscored_headers = df.columns.tolist()
+        json_string = df.to_json(orient="records")
+        json_data = json.loads(json_string)
 
-      last_uploaded_csv_data = df
-      json_string = df.to_json(orient="records")
-      json_data = json.loads(json_string)
-      
-      context = {"data": json_data, "display_headers": headers, "initial": initial}
+        df.loc[df["unique_index"] == int(i), underscored_headers] = list(
+            map(lambda x: new_data[x], underscored_headers)
+        )
+        df.loc[df["unique_index"] == i, "unique_index"] = int(i)
 
-  # return redirect("home")
-  return render(request, "index.html", context)
-    
+        last_uploaded_csv_data = df
+        json_string = df.to_json(orient="records")
+        json_data = json.loads(json_string)
+
+        if most_recent_search_results is not None:
+            df = pd.DataFrame(most_recent_search_results)
+            df.loc[df["unique_index"] == int(i), underscored_headers] = list(
+                map(lambda x: new_data[x], underscored_headers)
+            )
+            df.loc[df["unique_index"] == i, "unique_index"] = int(i)
+            json_string = df.to_json(orient="records")
+            json_data = json.loads(json_string)
+            most_recent_search_results = json_data
+
+        context = {
+            "data": json_data,
+            "display_headers": headers,
+            "initial": initial,
+            "filename": filename,
+            "searchFiltersActive": True
+            if most_recent_search_results is not None
+            else False,
+        }
+
+    # return redirect("home")
+    return render(request, "index.html", context)
+
 
 def upload(request):
     global last_uploaded_csv_data
     global initial
     global headers
+    global filename
+    global most_recent_search_results
+    global filename
+
+    most_recent_search_results = None
 
     if request.method == "POST":
         csv_file = request.FILES["csvFile"]
+        filename = csv_file
+        print("name:", csv_file)
 
         df = pd.read_csv(csv_file)
         # df.columns = df.columns.str.replace('/', '_')
@@ -222,163 +305,196 @@ def upload(request):
         final_data = []
         initial = 0
         for entry in json_data:
-          dictionary = {"unique_index": initial}
-          initial += 1
-          # data_headers = []
-          for header in headers:
-              # header_joined = "_".join(header.lower().split(' '))
-              # data_headers.append(header_joined)
-              # print("type:", type(header))
-              # print("isvaliddate?:", is_valid_date(header))
-              # date_format = "%m/%d/%Y"
-              # temp = convert_to_valid_date(str(entry[header]), date_format)
-              # if temp is not None:
-              #    print("converted")
-              #    entry[header] = temp
-              #    dictionary[header] = entry[header]
-              # else: 
-              ascending[header] = True
-              dictionary[header] = str(entry[header])
-          final_data.append(dictionary)
-
-        
+            dictionary = {"unique_index": initial}
+            initial += 1
+            # data_headers = []
+            for header in headers:
+                # header_joined = "_".join(header.lower().split(' '))
+                # data_headers.append(header_joined)
+                # print("type:", type(header))
+                # print("isvaliddate?:", is_valid_date(header))
+                # date_format = "%m/%d/%Y"
+                # temp = convert_to_valid_date(str(entry[header]), date_format)
+                # if temp is not None:
+                #    print("converted")
+                #    entry[header] = temp
+                #    dictionary[header] = entry[header]
+                # else:
+                ascending[header] = True
+                dictionary[header] = str(entry[header])
+            final_data.append(dictionary)
 
         headers.insert(0, "Unique Index")
         headers.insert(0, "Delete")
         headers.insert(0, "Edit")
 
-
         new_df = pd.DataFrame(final_data)
         last_uploaded_csv_data = new_df
-       
-        context = {"display_headers": headers, "data": final_data, "initial": initial}
+
+        context = {
+            "display_headers": headers,
+            "data": final_data,
+            "initial": initial,
+            "filename": filename,
+            "searchFiltersActive": True
+            if most_recent_search_results is not None
+            else False,
+        }
 
         return render(request, "index.html", context)
     return render(request, "index.html")
 
+
 def search(request):
-  global last_uploaded_csv_data
-  global initial
-  global headers
+    global last_uploaded_csv_data
+    global initial
+    global headers
+    global filename
+    global most_recent_search_results
 
-  if last_uploaded_csv_data is None:
-     return redirect("/")
+    if last_uploaded_csv_data is None:
+        print("Well???")
+        return redirect("/")
 
-  get_data = request.GET
-  query = str(get_data["query"])
-  print("query:", query)
+    get_data = request.GET
+    query = str(get_data["query"])
+    print("query:", query)
 
-  df = last_uploaded_csv_data
-  json_string = df.to_json(orient="records")
-  json_data = json.loads(json_string)
-  print("df:", df)
+    df = last_uploaded_csv_data
+    json_string = df.to_json(orient="records")
+    json_data = json.loads(json_string)
+    print("df:", df)
 
-  # underscored_headers = df.columns.tolist()
+    # underscored_headers = df.columns.tolist()
 
-  matching_frames = []
-  for header in headers:
-    if (header == "Edit" or header == "Delete" or header == "Unique Index"):
-     continue
-    print(header)
-    filtered_df = df.loc[df[header].str.contains(query, case=False)]
-    # print("filtered:", filtered_df)
-    matching_frames.append(filtered_df)
-  
-  result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
-  result_frame = result_frame.drop_duplicates()
-  json_string = result_frame.to_json(orient="records")
-  json_data = json.loads(json_string)
+    matching_frames = []
+    for header in headers:
+        if header == "Edit" or header == "Delete" or header == "Unique Index":
+            continue
+        # print(header)
+        filtered_df = df.loc[df[header].str.contains(query, case=False)]
+        # print("filtered:", filtered_df)
+        matching_frames.append(filtered_df)
 
+    result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
+    result_frame = result_frame.drop_duplicates()
+    if len(result_frame) == 0:
+        #  include popup saying no results or something
+        return redirect("/")
+    json_string = result_frame.to_json(orient="records")
+    json_data = json.loads(json_string)
 
+    most_recent_search_results = json_data
 
+    context = {
+        "display_headers": headers,
+        "data": json_data,
+        "initial": initial,
+        "filename": filename,
+        "searchFiltersActive": True
+        if most_recent_search_results is not None
+        else False,
+    }
 
-  context = {"display_headers": headers, "data": json_data, "initial": initial}
-
-  return render(request, "index.html", context)
-
-
+    return render(request, "index.html", context)
 
 
 def custom_sort(col):
-  try:
-      # Try converting the values to numbers
-      converted_values = [convert_to_valid_date(value) for value in col]
-      return converted_values
-  except ValueError:
-      try:
-        # If conversion fails, use the original method (str.lower())
-        converted_values = [float(value) for value in col]
+    try:
+        # Try converting the values to numbers
+        converted_values = [convert_to_valid_date(value) for value in col]
         return converted_values
-      except ValueError:
-        return col.str.lower()
-
-
-
+    except ValueError:
+        try:
+            # If conversion fails, use the original method (str.lower())
+            converted_values = [float(value) for value in col]
+            return converted_values
+        except ValueError:
+            return col.str.lower()
 
 
 def sortByHeader(request, header):
-  print(header)
-  global last_uploaded_csv_data
-  global initial
-  global headers
-  df = last_uploaded_csv_data
-  header = header.replace("%2F", "/")
-  print(df)
+    print(header)
+    global last_uploaded_csv_data
+    global initial
+    global headers
+    global most_recent_search_results
 
-  df_sorted = df.sort_values(by=header, key=custom_sort, ascending=ascending[header])
-  ascending[header] = not ascending[header]
-  last_uploaded_csv_data = df_sorted
-  print(df_sorted)
-  json_string = df_sorted.to_json(orient="records")
-  json_data = json.loads(json_string)
+    df = last_uploaded_csv_data
+    header = header.replace("%2F", "/")
+    print(df)
 
-  context = {"display_headers": headers, "data": json_data, "initial": initial}
+    if most_recent_search_results is not None:
+        json_data = most_recent_search_results
+        filtered_df = pd.DataFrame(json_data)
+        df_sorted = filtered_df.sort_values(
+            by=header, key=custom_sort, ascending=ascending[header]
+        )
+        ascending[header] = not ascending[header]
+        json_string = df_sorted.to_json(orient="records")
+        json_data = json.loads(json_string)
+    else:
+        df_sorted = df.sort_values(
+            by=header, key=custom_sort, ascending=ascending[header]
+        )
+        ascending[header] = not ascending[header]
+        last_uploaded_csv_data = df_sorted
+        print(df_sorted)
+        json_string = df_sorted.to_json(orient="records")
+        json_data = json.loads(json_string)
 
-  return render(request, "index.html", context)
-  return redirect("/")
-
-
-
+    context = {
+        "display_headers": headers,
+        "data": json_data,
+        "initial": initial,
+        "filename": filename,
+        "searchFiltersActive": True
+        if most_recent_search_results is not None
+        else False,
+    }
+    return render(request, "index.html", context)
 
 
 def clear_all(request):
-  global last_uploaded_csv_data
-  global initial
-  global headers
+    global last_uploaded_csv_data
+    global initial
+    global headers
+    global filename
+    global most_recent_search_results
 
-  last_uploaded_csv_data = None
-  initial = 0
-  headers = []
+    most_recent_search_results = None
+    last_uploaded_csv_data = None
+    initial = 0
+    filename = ""
+    headers = []
 
-  return redirect("/")
-
+    return redirect("/")
 
 
 def is_valid_date(date_string):
-  try:
-      # Attempt to parse the string into a date
-      parsed_date = parser.parse(date_string)
-      return True
-  except ValueError:
-      # If parsing fails, it's not a valid date
-      return False
-  
+    try:
+        # Attempt to parse the string into a date
+        parsed_date = parser.parse(date_string)
+        return True
+    except ValueError:
+        # If parsing fails, it's not a valid date
+        return False
+
 
 def is_valid_date_format(date_string):
     try:
         # Attempt to parse the date string using the specified format
-        datetime.strptime(date_string, '%m/%d/%Y')
+        datetime.strptime(date_string, "%m/%d/%Y")
         return True
     except ValueError:
         # If parsing fails, the format is not valid
         return False
-  
 
 
 def convert_to_valid_date(date_string):
     try:
         # Attempt to parse the string into a date using the specified format
-        parsed_date = datetime.strptime(date_string, '%m/%d/%Y')
+        parsed_date = datetime.strptime(date_string, "%m/%d/%Y")
         return parsed_date
     except ValueError:
         # If parsing fails, return None
