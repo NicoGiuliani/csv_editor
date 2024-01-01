@@ -1,0 +1,258 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <title>CSV Editor</title>
+    <style>
+      html,
+      body,
+      :root {
+        margin: 0;
+        padding: 0;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .scrollable-div {
+      width: 300px; /* Set the desired width */
+      overflow-x: auto;
+      white-space: nowrap;
+      border: 1px solid #ccc; /* Optional: Add border for styling */
+    }
+    .navbar {
+      height: 75px;
+    }
+
+    .scrollable-content {
+      width: 600px; /* Set the width of the content inside the scrollable div */
+      padding: 10px; /* Optional: Add padding for styling */
+    }
+    </style>
+  </head>
+  <body>
+
+    <nav class="navbar navbar-expand-lg bg-primary" data-bs-theme="dark">
+      <div class="container-fluid" style="width:95%">
+        <div class="w-100 me-auto">
+          <a class="navbar-brand" href="/">CSVEditor</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+        </div>
+        <div class="d-flex gap-5 w-50 justify-content-end">
+          {% if data %}
+          <div class="row my-auto">
+            <div class="col-4">
+              <a href="/clear_all" class="btn btn-danger">Clear All</a>
+            </div>
+            <!-- <div class="collapse navbar-collapse" id="navbarColor01"> -->
+              <div class="col-8 p-0">
+                <form action="/search" class="d-flex">
+                  <input class="form-control me-sm-2 text-black" type="search" name="query" id="query">
+                  <button class="btn btn-secondary my-2 my-sm-0" type="submit">Search</button>
+                </form>
+              </div>
+            </div>
+            <!-- </div> -->
+          </div>
+          {% endif %}
+      </div>
+    </nav>
+
+
+
+
+    <!-- ------------------------------------------------------------ -->
+
+
+    <div class="accordion" id="accordionExample">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingOne">
+          <button class="accordion-button {% if to_edit %}collapsed{% else %}{%if not data %}show{% else %}collapsed{% endif %}{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="{% if to_edit %}false{% else %}{%if not data %}true{% else %}false{% endif %}{% endif %}" aria-controls="collapseTwo">
+            Upload a File
+          </button>
+        </h2>
+        <div id="collapseTwo" class="accordion-collapse {% if to_edit %}collapse{% else %}{%if not data %}show{% else %}collapse{% endif %}{% endif %}" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+          <div class="accordion-body">
+
+
+            <!-- ----- -->
+
+
+
+            <div class="mx-auto" style="width:95%">
+              <div class="my-3 w-100">
+                <p class="h4">Upload a .csv file to begin</p>
+                <div class="form-group w-100">
+                  <div class="row">
+                    <div class="col-10">
+                      <form action="/upload" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row">
+                          <div class="col-10">
+                            <!-- <label for="csvFile">Choose a CSV file:</label> -->
+                            <input class="form-control" type="file" id="csvFile"
+                              name="csvFile" accept=".csv"
+                              required>
+                          </div>
+                          <div class="col-2 mt-auto">
+                            <button class="btn btn-info w-100"
+                              type="submit">Upload</button>
+                          </div>
+                        </div>
+                    </form>
+                  </div>
+        
+                  <div class="col-2 mt-auto">
+                    <form action="/export" method="post">
+                      {% csrf_token %}
+                      <button class="btn btn-success w-100" type="submit">Export
+                        to CSV</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+        
+              <!-- ------------------------------------------------------ -->
+              
+
+
+
+
+
+
+
+            <!-- ------- -->
+
+
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    {% if data %}
+
+    <div class="accordion" id="accordionExample2">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingOne">
+          <button class="accordion-button {% if not to_edit %}collapsed{% else %}show{% endif %}" type="button"
+            data-bs-toggle="collapse" data-bs-target="#collapseOne"
+            aria-expanded="{% if not to_edit %}false{% else %}true{% endif %}" aria-controls="collapseOne">
+            {% if not to_edit %}Add New User{% else %}Edit User{% endif %}
+          </button>
+        </h2>
+        <div id="collapseOne" class="accordion-collapse {% if not to_edit %}collapse{% else %}show{% endif %}"
+          aria-labelledby="headingOne" data-bs-parent="#accordionExample"
+          style>
+
+          <div style="width:95%;margin:0 auto;" class="accordion-body">
+            <form method="post" {% if not to_edit %}action="/create"{% else %}action="/update"{% endif %}>
+              {% csrf_token %}
+              <fieldset>
+                {% if to_edit %}
+                <div class="form-group d-flex w-100">
+                  <div class="row">
+                    {% for key, value in to_edit.items %}
+                    <div class="col-4">
+                      <label for="{{key}}" class="form-label mt-4">{% if key == "unique_index" %}Unique Index{% else %}{{key}}{% endif %}</label>
+                      <input type="text" {% if key == "unique_index" %}readonly{% endif %} class="form-control"
+                      name="{{key}}" id="{{key}}"
+                      aria-describedby="{{key}}" required value="{{ value }}">
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                  
+                {% else %}
+                <div class="form-group d-flex w-100">
+                  <div class="row">
+                    {% for key, value in data.0.items %}
+                    <div class="col-4">
+                      <label for="{{key}}" class="form-label mt-4">{% if key == "unique_index" %}Unique Index{% else %}{{key}}{% endif %}</label>
+                      <input {% if key == "unique_index" %}type="int"{% else %}type="text"{% endif %} {% if key == "unique_index" %}readonly{% endif %}  class="form-control"
+                      name="{{key}}" id="{{key}}" {% if key == "unique_index" %}value="{{ initial }}"{% endif %}
+                      aria-describedby="{{key}}" required>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                  
+
+                {% endif %}
+                
+              </fieldset>
+              <div class="d-flex flex-row justify-content-around">
+                <div class="col-4 mt-5">
+                  <button type="submit" class="btn btn-success w-100">{% if not to_edit %}Add New User{% else %}Save Changes{% endif %}</button>
+                </div>
+
+                <div class="col-4 mt-5">
+                  <a href="/" class="btn btn-warning w-100">Cancel</a>
+                </div>
+              </div>
+            </form>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+    
+
+    <div class="scrollable-div w-100">
+      <div class="scrollable-content">
+        <div class="mx-auto align-items-center justify-content-center">
+          <table class="table table-hover mx-auto">
+            <thead>
+              <tr>
+                {% for display_header in display_headers %}
+                {% if display_header != "Unique Index" %}
+                
+                  <th scope="col">
+                    {% if display_header != "Edit" and display_header != "Delete" %}
+                    <a href="/sortByHeader/{{display_header}}">
+                      {{ display_header }}
+                    </a>
+                    {% else %}
+                      {{ display_header }}
+                    {% endif %}
+                  </th>
+
+                {% endif %}
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for object in data %}
+                <tr class="table-default">
+                  <td><a href="/edit/{{ object.unique_index }}"
+                    class="btn btn-warning">Edit</a></td>
+                  <td><a href="/delete/{{ object.unique_index }}"
+                    class="btn btn-danger">Delete</a>
+                  </td>
+                  {% for key, value in object.items %}
+                  {% if key != "unique_index" %}
+                  <td>
+                    {{ value }}
+                  </td>
+                  {% endif %}
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </body>
+</html>

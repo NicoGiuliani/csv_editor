@@ -1,0 +1,5 @@
+venv
+csv_editor/db.sqlite3
+csv_editor/csv_editor/__pycache__/
+csv_editor/app/__pycache__/
+csv_editor/app/migrations/__pycache__/
