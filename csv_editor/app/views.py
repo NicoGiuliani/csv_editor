@@ -11,6 +11,7 @@ import csv
 last_uploaded_csv_data = None
 initial = 0
 headers = []
+ascending = {}
 
 
 def home(request):
@@ -61,16 +62,24 @@ def export(request):
     # Specify the file path where you want to save the CSV file
     csv_file_path = "output_file.csv"
     df = last_uploaded_csv_data
+
+    # Columns to ignore
+    columns_to_ignore = ['unique_index']
+
+    # Create a new DataFrame without the specified columns
+    df_without_columns = df.drop(columns=columns_to_ignore)
+    print("df:", df_without_columns)
+
     # Export the DataFrame to a CSV file
-    df.to_csv(csv_file_path, index=False)
-    json_string = df.to_json(orient="records")
-    json_data = json.loads(json_string)
-    print(type(json_data))
+    # df.to_csv(csv_file_path, index=False)
+    # json_string = df.to_json(orient="records")
+    # json_data = json.loads(json_string)
+    # print(type(json_data))
+    # context = {"data": json_data}
     print(f"DataFrame has been exported to {csv_file_path}")
-    context = {"data": json_data}
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="export.csv"'
-    df.to_csv(path_or_buf=response)  # with other applicable parameters
+    df_without_columns.to_csv(path_or_buf=response, index=False)  # with other applicable parameters
     return response
 
 
@@ -203,10 +212,10 @@ def upload(request):
         csv_file = request.FILES["csvFile"]
 
         df = pd.read_csv(csv_file)
+        # df.columns = df.columns.str.replace('/', '_')
 
         json_string = df.to_json(orient="records")
         json_data = json.loads(json_string)
-        print(json_data)
 
         headers = df.columns.tolist()
 
@@ -228,15 +237,15 @@ def upload(request):
               #    entry[header] = temp
               #    dictionary[header] = entry[header]
               # else: 
+              ascending[header] = True
               dictionary[header] = str(entry[header])
           final_data.append(dictionary)
+
+        
 
         headers.insert(0, "Unique Index")
         headers.insert(0, "Delete")
         headers.insert(0, "Edit")
-
-
-
 
 
         new_df = pd.DataFrame(final_data)
@@ -289,15 +298,35 @@ def search(request):
 
 
 
+
+def custom_sort(col):
+  try:
+      # Try converting the values to numbers
+      converted_values = [convert_to_valid_date(value) for value in col]
+      return converted_values
+  except ValueError:
+      try:
+        # If conversion fails, use the original method (str.lower())
+        converted_values = [float(value) for value in col]
+        return converted_values
+      except ValueError:
+        return col.str.lower()
+
+
+
+
+
 def sortByHeader(request, header):
   print(header)
   global last_uploaded_csv_data
   global initial
   global headers
   df = last_uploaded_csv_data
+  header = header.replace("%2F", "/")
   print(df)
 
-  df_sorted = df.sort_values(by=header)
+  df_sorted = df.sort_values(by=header, key=custom_sort, ascending=ascending[header])
+  ascending[header] = not ascending[header]
   last_uploaded_csv_data = df_sorted
   print(df_sorted)
   json_string = df_sorted.to_json(orient="records")
@@ -335,22 +364,22 @@ def is_valid_date(date_string):
       return False
   
 
-def is_valid_date_format(date_string, date_format):
+def is_valid_date_format(date_string):
     try:
-        # Attempt to parse the string into a date using the specified format
-        datetime.strptime(date_string, date_format)
+        # Attempt to parse the date string using the specified format
+        datetime.strptime(date_string, '%m/%d/%Y')
         return True
     except ValueError:
-        # If parsing fails, it's not a valid date in the specified format
+        # If parsing fails, the format is not valid
         return False
   
 
 
-def convert_to_valid_date(date_string, date_format):
+def convert_to_valid_date(date_string):
     try:
         # Attempt to parse the string into a date using the specified format
-        parsed_date = datetime.strptime(date_string, date_format)
+        parsed_date = datetime.strptime(date_string, '%m/%d/%Y')
         return parsed_date
     except ValueError:
         # If parsing fails, return None
-        return None
+        raise ValueError(f"Not a valid date")
