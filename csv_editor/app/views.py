@@ -1,9 +1,14 @@
 from datetime import datetime
 import json
+import os
 from django.shortcuts import redirect, render
 from django.http import FileResponse, HttpResponse
 import pandas as pd
 from dateutil import parser
+from django.contrib.sessions.models import Session
+
+from django.contrib import messages
+
 import csv
 
 # Create your views here.
@@ -79,6 +84,15 @@ def export(request):
     df_without_columns.to_csv(
         path_or_buf=response, index=False
     )  # with other applicable parameters
+    # Delete the CSV file
+    # try:
+    #     os.remove(csv_file_path)
+    #     print(f"{csv_file_path} has been deleted.")
+    # except FileNotFoundError:
+    #     print(f"{csv_file_path} not found. It may not have been created.")
+    # except Exception as e:
+    #     print(f"An error occurred while deleting {csv_file_path}: {e}")
+
     return response
 
 
@@ -352,9 +366,9 @@ def search(request):
     global filename
     global most_recent_search_results
 
-    if last_uploaded_csv_data is None:
-        print("Well???")
-        return redirect("/")
+    # if last_uploaded_csv_data is None:
+    #     print("Well???")
+    #     return redirect("/")
 
     get_data = request.GET
     query = str(get_data["query"])
@@ -363,7 +377,7 @@ def search(request):
     df = last_uploaded_csv_data
     json_string = df.to_json(orient="records")
     json_data = json.loads(json_string)
-    print("df:", df)
+    # print("df:", df)
 
     # underscored_headers = df.columns.tolist()
 
@@ -375,14 +389,17 @@ def search(request):
         filtered_df = df.loc[df[header].str.contains(query, case=False)]
         # print("filtered:", filtered_df)
         matching_frames.append(filtered_df)
+      
+    print("matching_frame", matching_frames)
 
     result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
     result_frame = result_frame.drop_duplicates()
-    if len(result_frame) == 0:
-        #  include popup saying no results or something
-        return redirect("/")
     json_string = result_frame.to_json(orient="records")
     json_data = json.loads(json_string)
+    if len(result_frame) == 0:
+        messages.error(request, 'No results found.')
+        #  include popup saying no results or something
+        return redirect("/")
 
     most_recent_search_results = json_data
 
