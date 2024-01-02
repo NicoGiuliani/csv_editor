@@ -1,5 +1,7 @@
+import ast
 from datetime import datetime
 import json
+from django.contrib.sessions.models import Session
 import os
 from django.shortcuts import redirect, render
 from django.http import FileResponse, HttpResponse
@@ -11,35 +13,47 @@ from django.contrib import messages
 
 import csv
 
-# Create your views here.
-# appname/views.py
-last_uploaded_csv_data = None
-initial = 0
-headers = []
-ascending = {}
-most_recent_search_results = {}
-filename = ""
-
 
 def home(request):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global most_recent_search_results
-    global filename
 
-    df = last_uploaded_csv_data
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+    else:
+        df = None
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
+    if "most_recent_search_results" in request.session:
+        most_recent_search_results = None
+        request.session["most_recent_search_results"] = None
+        
     context = {}
 
-    most_recent_search_results = None
 
     if df is not None:
-        json_string = df.to_json(orient="records")
-        json_data = json.loads(json_string)
+        json_object = df.to_json(orient="records")
+        json_string = json.loads(json_object)
 
         context = {
             "display_headers": headers,
-            "data": json_data,
+            "data": json_string,
             "initial": initial,
             "filename": filename,
             "searchFiltersActive": True
@@ -50,20 +64,36 @@ def home(request):
     return render(request, "index.html", context)
 
 
-def test(request):
-    return render(request, "test.html")
 
 
 def export(request):
-    global last_uploaded_csv_data
-    global initial
 
-    if last_uploaded_csv_data is None:
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+    else:
         return redirect("/")
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
 
     # Specify the file path where you want to save the CSV file
     csv_file_path = "output_file.csv"
-    df = last_uploaded_csv_data
 
     # Columns to ignore
     columns_to_ignore = ["unique_index"]
@@ -97,36 +127,46 @@ def export(request):
 
 
 def delete(request, id):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global most_recent_search_results
-    global filename
 
-    df = last_uploaded_csv_data
-    print("here")
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+        print(df)
+    else:
+        df = None
 
-    # if most_recent_search_results is not None:
-    #   print("now here")
-    #   json_data = most_recent_search_results
-    #   most_recent_dataframe = pd.DataFrame(most_recent_search_results)
-    #   most_recent_df = most_recent_dataframe.drop(df[df["unique_index"] == int(id)].index)
-    #   most_recent_df = most_recent_df.drop(df[df["unique_index"] == id].index)
-    #   json_string = most_recent_df.to_json(orient="records")
-    #   json_data = json.loads(json_string)
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
 
-    print(df)
-    print("Boom:", type(id))
-    print("Bing:", id)
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
+    if "most_recent_search_results" in request.session:
+        most_recent_search_results = request.session["most_recent_search_results"]
+    else:
+        most_recent_search_results = None
+
     df = df.drop(df[df["unique_index"] == int(id)].index)
     df = df.drop(df[df["unique_index"] == id].index)
     print("Deleted ID:", id)
 
-    last_uploaded_csv_data = df
+    # last_uploaded_csv_data = df
 
     # if most_recent_search_results is None:
-    json_string = df.to_json(orient="records")
-    json_data = json.loads(json_string)
+    json_object = df.to_json(orient="records")
+    json_string = json.loads(json_object)
 
     if most_recent_search_results is not None:
         print("filtered")
@@ -134,15 +174,23 @@ def delete(request, id):
         df = df.drop(df[df["unique_index"] == int(id)].index)
         df = df.drop(df[df["unique_index"] == id].index)
         print(df)
-        json_string = df.to_json(orient="records")
-        json_data = json.loads(json_string)
-        most_recent_search_results = json_data
-        if len(json_data) == 0:
+        new_json_object = df.to_json(orient="records")
+        json_string = json.loads(new_json_object)
+        most_recent_search_results = json_string
+        
+    # use this
+    request.session["last_uploaded_csv_data"] = json_object
+    request.session["initial"] = str(initial)
+    request.session["headers"] = str(headers)
+    request.session["filename"] = str(filename)
+    request.session["most_recent_search_results"] = most_recent_search_results
+
+    if len(json_string) == 0:
             return redirect("/")
 
     context = {
         "display_headers": headers,
-        "data": json_data,
+        "data": json_string,
         "initial": initial,
         "filename": filename,
         "searchFiltersActive": True
@@ -153,36 +201,66 @@ def delete(request, id):
 
 
 def edit(request, id):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global filename
-    global most_recent_search_results
+
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+        print(df)
+    else:
+        df = None
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
+    if "most_recent_search_results" in request.session:
+        most_recent_search_results = request.session["most_recent_search_results"]
+    else:
+        most_recent_search_results = None
 
     print("edit")
-    df = last_uploaded_csv_data
-    print(df)
     print("id:", id)
 
     # this is made a string for now, may have to change later
     to_edit = df.loc[df["unique_index"] == int(id)]
     print(to_edit)
 
-    last_uploaded_csv_data = df
-    json_string = df.to_json(orient="records")
-    json_data = json.loads(json_string)
+    # last_uploaded_csv_data = df
+    json_object = df.to_json(orient="records")
+    json_string = json.loads(json_object)
 
-    to_edit_json_string = to_edit.to_json(orient="records")
-    json_to_edit_data = json.loads(to_edit_json_string)
-    print(json_to_edit_data)
+    to_edit_json_object = to_edit.to_json(orient="records")
+    json_to_edit_string = json.loads(to_edit_json_object)
+    print(json_to_edit_string)
 
     if most_recent_search_results is not None:
-        json_data = most_recent_search_results
+        json_string = most_recent_search_results
+
+    # use this
+    request.session["last_uploaded_csv_data"] = json_object
+    request.session["initial"] = str(initial)
+    request.session["headers"] = str(headers)
+    request.session["filename"] = str(filename)
+    request.session["most_recent_search_results"] = most_recent_search_results
 
     context = {
         "display_headers": headers,
-        "data": json_data,
-        "to_edit": json_to_edit_data[0],
+        "data": json_string,
+        "to_edit": json_to_edit_string[0],
         "initial": initial,
         "filename": filename,
         "searchFiltersActive": True
@@ -193,11 +271,32 @@ def edit(request, id):
 
 
 def create(request):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global filename
-    global most_recent_search_results
+
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+        # print(df)
+    else:
+        df = None
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
 
     most_recent_search_results = None
 
@@ -213,18 +312,24 @@ def create(request):
         new_data["unique_index"] = int(new_data["unique_index"])
         print("new_data:", new_data)
 
-        df = last_uploaded_csv_data
-        # headers = df.columns.tolist()
         new_data_df = pd.DataFrame([new_data])
         df = pd.concat([df, new_data_df], ignore_index=True)
-        last_uploaded_csv_data = df
-        json_string = df.to_json(orient="records")
-        json_data = json.loads(json_string)
 
-        print("json_data:", json_data)
+        json_object = df.to_json(orient="records")
+        json_string = json.loads(json_object)
+
+        print("json_data:", json_string)
         initial += 1
+
+        # use this
+        request.session["last_uploaded_csv_data"] = json_object
+        request.session["initial"] = str(initial)
+        request.session["headers"] = str(headers)
+        request.session["filename"] = str(filename)
+        request.session["most_recent_search_results"] = most_recent_search_results
+
         context = {
-            "data": json_data,
+            "data": json_string,
             "display_headers": headers,
             "initial": initial,
             "filename": filename,
@@ -237,11 +342,36 @@ def create(request):
 
 
 def update(request):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global filename
-    global most_recent_search_results
+
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+        print(df)
+    else:
+        df = None
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
+    if "most_recent_search_results" in request.session:
+        most_recent_search_results = request.session["most_recent_search_results"]
+    else:
+        most_recent_search_results = None
 
     if request.method == "POST":
         post_data = request.POST
@@ -254,11 +384,10 @@ def update(request):
 
         keys = list(new_data.keys())
 
-        df = last_uploaded_csv_data
         i = new_data["unique_index"]
         underscored_headers = df.columns.tolist()
-        json_string = df.to_json(orient="records")
-        json_data = json.loads(json_string)
+        json_object = df.to_json(orient="records")
+        json_string = json.loads(json_object)
 
         df.loc[df["unique_index"] == int(i), underscored_headers] = list(
             map(lambda x: new_data[x], underscored_headers)
@@ -266,21 +395,28 @@ def update(request):
         df.loc[df["unique_index"] == i, "unique_index"] = int(i)
 
         last_uploaded_csv_data = df
-        json_string = df.to_json(orient="records")
-        json_data = json.loads(json_string)
+        json_object = df.to_json(orient="records")
+        json_string = json.loads(json_object)
 
         if most_recent_search_results is not None:
-            df = pd.DataFrame(most_recent_search_results)
+            df = pd.DataFrame(json.loads(most_recent_search_results))
             df.loc[df["unique_index"] == int(i), underscored_headers] = list(
                 map(lambda x: new_data[x], underscored_headers)
             )
             df.loc[df["unique_index"] == i, "unique_index"] = int(i)
-            json_string = df.to_json(orient="records")
-            json_data = json.loads(json_string)
-            most_recent_search_results = json_data
+            json_object = df.to_json(orient="records")
+            json_string = json.loads(json_object)
+            most_recent_search_results = json_string
+
+        # use this
+        request.session["last_uploaded_csv_data"] = json_object
+        request.session["initial"] = str(initial)
+        request.session["headers"] = str(headers)
+        request.session["filename"] = str(filename)
+        request.session["most_recent_search_results"] = most_recent_search_results
 
         context = {
-            "data": json_data,
+            "data": json_string,
             "display_headers": headers,
             "initial": initial,
             "filename": filename,
@@ -294,89 +430,100 @@ def update(request):
 
 
 def upload(request):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global filename
-    global most_recent_search_results
-    global filename
-
     most_recent_search_results = None
+    request.session["most_recent_search_results"] = most_recent_search_results
 
-    if request.method == "POST":
-        csv_file = request.FILES["csvFile"]
-        filename = csv_file
-        print("name:", csv_file)
+    csv_file = request.FILES["csvFile"]
+    filename = csv_file
+    print("name:", csv_file)
 
-        df = pd.read_csv(csv_file)
-        # df.columns = df.columns.str.replace('/', '_')
+    df = pd.read_csv(csv_file)
 
-        json_string = df.to_json(orient="records")
-        json_data = json.loads(json_string)
+    json_string = df.to_json(orient="records")
+    json_data = json.loads(json_string)
 
-        headers = df.columns.tolist()
+    headers = df.columns.tolist()
 
-        final_data = []
-        initial = 0
-        for entry in json_data:
-            dictionary = {"unique_index": initial}
-            initial += 1
-            # data_headers = []
-            for header in headers:
-                # header_joined = "_".join(header.lower().split(' '))
-                # data_headers.append(header_joined)
-                # print("type:", type(header))
-                # print("isvaliddate?:", is_valid_date(header))
-                # date_format = "%m/%d/%Y"
-                # temp = convert_to_valid_date(str(entry[header]), date_format)
-                # if temp is not None:
-                #    print("converted")
-                #    entry[header] = temp
-                #    dictionary[header] = entry[header]
-                # else:
-                ascending[header] = True
-                dictionary[header] = str(entry[header])
-            final_data.append(dictionary)
+    final_data = []
+    initial = 0
+    ascending = None
+    for entry in json_data:
+        dictionary = {"unique_index": initial}
+        initial += 1
+        ascending = {}
+        for header in headers:
+            ascending[header] = True
+            dictionary[header] = str(entry[header])
+        final_data.append(dictionary)
 
-        headers.insert(0, "Unique Index")
-        headers.insert(0, "Delete")
-        headers.insert(0, "Edit")
+    headers.insert(0, "Unique Index")
+    headers.insert(0, "Delete")
+    headers.insert(0, "Edit")
 
-        new_df = pd.DataFrame(final_data)
-        last_uploaded_csv_data = new_df
+    new_df = pd.DataFrame(final_data)
+    json_object = new_df.to_json(orient="records")
+    json_string = json.loads(json_object)
 
-        context = {
-            "display_headers": headers,
-            "data": final_data,
-            "initial": initial,
-            "filename": filename,
-            "searchFiltersActive": True
-            if most_recent_search_results is not None
-            else False,
-        }
+    ascending = json.dumps(ascending)
+    # print("type2:", type(ascending))
 
-        return render(request, "index.html", context)
-    return render(request, "index.html")
+
+    # use this
+    request.session["last_uploaded_csv_data"] = json_object
+    request.session["initial"] = str(initial)
+    request.session["headers"] = str(headers)
+    request.session["filename"] = str(filename)
+    request.session["most_recent_search_results"] = most_recent_search_results
+    request.session["ascending"] = ascending
+
+    context = {
+        "display_headers": headers,
+        "data": json_string,
+        "initial": initial,
+        "filename": filename,
+        "searchFiltersActive": True
+        if most_recent_search_results is not None
+        else False,
+    }
+
+    return render(request, "index.html", context)
 
 
 def search(request):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global filename
-    global most_recent_search_results
 
-    # if last_uploaded_csv_data is None:
-    #     print("Well???")
-    #     return redirect("/")
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+    else:
+        df = None
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
+    if "most_recent_search_results" in request.session:
+        request.session["most_recent_search_results"] = None
 
     get_data = request.GET
     query = str(get_data["query"])
     print("query:", query)
 
-    df = last_uploaded_csv_data
-    json_string = df.to_json(orient="records")
-    json_data = json.loads(json_string)
+    json_object = df.to_json(orient="records")
+    json_string = json.loads(json_object)
     # print("df:", df)
 
     # underscored_headers = df.columns.tolist()
@@ -394,18 +541,25 @@ def search(request):
 
     result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
     result_frame = result_frame.drop_duplicates()
-    json_string = result_frame.to_json(orient="records")
-    json_data = json.loads(json_string)
+    json_object = result_frame.to_json(orient="records")
+    json_string = json.loads(json_object)
     if len(result_frame) == 0:
         messages.error(request, 'No results found.')
         #  include popup saying no results or something
         return redirect("/")
 
-    most_recent_search_results = json_data
+    most_recent_search_results = json_string
+
+    # use this
+    # request.session["last_uploaded_csv_data"] = json_object
+    request.session["initial"] = str(initial)
+    request.session["headers"] = str(headers)
+    request.session["filename"] = str(filename)
+    request.session["most_recent_search_results"] = most_recent_search_results
 
     context = {
         "display_headers": headers,
-        "data": json_data,
+        "data": json_string,
         "initial": initial,
         "filename": filename,
         "searchFiltersActive": True
@@ -431,38 +585,75 @@ def custom_sort(col):
 
 
 def sortByHeader(request, header):
-    print(header)
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global most_recent_search_results
 
-    df = last_uploaded_csv_data
+    if "last_uploaded_csv_data" in request.session:
+        df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
+        print(df)
+    else:
+        df = None
+
+    if "initial" in request.session:
+        initial = int(request.session["initial"])
+    else:
+        initial = 0
+
+    if "headers" in request.session:
+        headers = request.session["headers"]
+        try:
+            headers = ast.literal_eval(headers)
+        except (SyntaxError, ValueError) as e:
+            print(f"Error: {e}")
+    else:
+        headers = []
+
+    if "filename" in request.session:
+        filename = request.session["filename"]
+    else:
+        filename = ""
+
+    if "most_recent_search_results" in request.session:
+        most_recent_search_results = request.session["most_recent_search_results"]
+    else:
+        most_recent_search_results = None
+
+    if "ascending" in request.session:
+        ascending = request.session["ascending"]
+        ascending = json.loads(ascending.replace("'", "\""))
+        print("asc", type(ascending))
+
     header = header.replace("%2F", "/")
-    print(df)
 
     if most_recent_search_results is not None:
-        json_data = most_recent_search_results
-        filtered_df = pd.DataFrame(json_data)
+        filtered_df = pd.DataFrame(most_recent_search_results)
         df_sorted = filtered_df.sort_values(
             by=header, key=custom_sort, ascending=ascending[header]
         )
         ascending[header] = not ascending[header]
-        json_string = df_sorted.to_json(orient="records")
-        json_data = json.loads(json_string)
+        json_object = df_sorted.to_json(orient="records")
+        json_string = json.loads(json_object)
     else:
         df_sorted = df.sort_values(
             by=header, key=custom_sort, ascending=ascending[header]
         )
         ascending[header] = not ascending[header]
-        last_uploaded_csv_data = df_sorted
         print(df_sorted)
-        json_string = df_sorted.to_json(orient="records")
-        json_data = json.loads(json_string)
+        json_object = df_sorted.to_json(orient="records")
+        json_string = json.loads(json_object)
+
+
+    ascending = json.dumps(ascending)
+    
+    # use this
+    request.session["last_uploaded_csv_data"] = json_object
+    request.session["initial"] = str(initial)
+    request.session["headers"] = str(headers)
+    request.session["filename"] = str(filename)
+    request.session["most_recent_search_results"] = most_recent_search_results
+    request.session["ascending"] = ascending
 
     context = {
         "display_headers": headers,
-        "data": json_data,
+        "data": json_string,
         "initial": initial,
         "filename": filename,
         "searchFiltersActive": True
@@ -473,18 +664,8 @@ def sortByHeader(request, header):
 
 
 def clear_all(request):
-    global last_uploaded_csv_data
-    global initial
-    global headers
-    global filename
-    global most_recent_search_results
-
-    most_recent_search_results = None
-    last_uploaded_csv_data = None
-    initial = 0
-    filename = ""
-    headers = []
-
+    # use this
+    request.session.clear()
     return redirect("/")
 
 
