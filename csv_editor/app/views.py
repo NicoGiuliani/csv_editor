@@ -12,15 +12,11 @@ from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.contrib import messages
 
-import csv
 
-def invalidate_session(request):
-    logout(request)
-    return JsonResponse({'message': 'Session invalidated'})
+import csv
 
 
 def home(request):
-
     if "last_uploaded_csv_data" in request.session:
         df = pd.DataFrame(json.loads(request.session["last_uploaded_csv_data"]))
     else:

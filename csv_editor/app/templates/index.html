@@ -314,10 +314,10 @@
                   <td><a href="/edit/{{ object.unique_index }}" class="btn btn-warning">Edit</a></td>
 
                   <td>
-                    <btn class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#exampleModal2">Delete</btn>
+                    <btn class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#exampleModal{{ object.unique_index }}">Delete</btn>
                   </td>
               
-                  <div class="modal" id="exampleModal2">
+                  <div class="modal" id="exampleModal{{ object.unique_index }}">
                     <div class="modal-dialog" role="document">
                       <div class="modal-content" style="background-color: white;">
                         <div class="modal-header">
@@ -331,7 +331,7 @@
                         </div>
                         <div class="modal-footer">
                           <div class="col-5 px-0">
-                            <a href="/delete/{{ object.unique_index }}"" class="btn btn-danger w-100">Delete</a>
+                            <a href="/delete/{{ object.unique_index }}" class="btn btn-danger w-100">Delete</a>
                           </div>
                           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         </div>
@@ -361,15 +361,6 @@
       document.addEventListener('DOMContentLoaded', function() {
         var myModal = new bootstrap.Modal(document.getElementById('myModal'));
         myModal.show();
-      });
-    </script>
-    <script>
-      window.addEventListener('beforeunload', function (event) {
-        // Make an asynchronous request to invalidate the session
-        fetch('/invalidate-session/', {
-          method: 'POST',
-          credentials: 'same-origin',  // Include credentials for the request (important for sessions)
-        });
       });
     </script>
 
