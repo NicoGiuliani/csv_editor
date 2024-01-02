@@ -434,11 +434,12 @@ def upload(request):
     most_recent_search_results = None
     request.session["most_recent_search_results"] = most_recent_search_results
 
-    csv_file = request.FILES["csvFile"]
-    filename = csv_file
-    print("name:", csv_file)
+    data_file = request.FILES["csvFile"]
+    filename = data_file
+    print("name:", data_file)
+    filetype = filename.name.split(".")[1]
 
-    df = pd.read_csv(csv_file)
+    df = pd.read_csv(data_file) if filetype == "csv" else pd.read_excel(data_file)
 
     json_string = df.to_json(orient="records")
     json_data = json.loads(json_string)
