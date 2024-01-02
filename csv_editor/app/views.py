@@ -441,6 +441,8 @@ def upload(request):
 
     df = pd.read_csv(data_file) if filetype == "csv" else pd.read_excel(data_file)
 
+    print(df)
+
     json_string = df.to_json(orient="records")
     json_data = json.loads(json_string)
 
