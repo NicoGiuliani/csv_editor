@@ -8,10 +8,15 @@ from django.http import FileResponse, HttpResponse
 import pandas as pd
 from dateutil import parser
 from django.contrib.sessions.models import Session
-
+from django.contrib.auth import logout
+from django.http import JsonResponse
 from django.contrib import messages
 
 import csv
+
+def invalidate_session(request):
+    logout(request)
+    return JsonResponse({'message': 'Session invalidated'})
 
 
 def home(request):
@@ -642,7 +647,7 @@ def sortByHeader(request, header):
 
 
     ascending = json.dumps(ascending)
-    
+
     # use this
     request.session["last_uploaded_csv_data"] = json_object
     request.session["initial"] = str(initial)

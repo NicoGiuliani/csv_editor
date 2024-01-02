@@ -12,4 +12,5 @@ urlpatterns = [
     path("clear_all", views.clear_all, name="clear_all"),
     path("search", views.search, name="search"),
     path("sortByHeader/<str:header>", views.sortByHeader, name="sortByHeader"),
+    path('invalidate-session/', views.invalidate_session, name='invalidate_session'),
 ]

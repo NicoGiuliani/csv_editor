@@ -363,6 +363,15 @@
         myModal.show();
       });
     </script>
+    <script>
+      window.addEventListener('beforeunload', function (event) {
+        // Make an asynchronous request to invalidate the session
+        fetch('/invalidate-session/', {
+          method: 'POST',
+          credentials: 'same-origin',  // Include credentials for the request (important for sessions)
+        });
+      });
+    </script>
 
   </body>
 </html>
