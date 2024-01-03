@@ -53,7 +53,7 @@
             <span class="navbar-toggler-icon"></span>
           </button> -->
           {% if searchFiltersActive %}
-          <a href="/" class="btn btn-info me-3">Clear filters</a>
+          <a id="clearFiltersButton" class="btn btn-info me-3">Clear filters</a>
           {% endif %}
           {% if data %}
 
@@ -177,7 +177,7 @@
                 <div class="form-group w-100">
                   <div class="row">
                     <div class="col-12">
-                      <form action="/upload" method="post" enctype="multipart/form-data">
+                      <form action="/upload" method="post" id="uploadForm" enctype="multipart/form-data">
                         {% csrf_token %}
                         <div class="row w-100">
                           <div class="col-10">
@@ -360,20 +360,23 @@
     </div>
     {% endif %}
 
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
     <script>
-      
+      document.addEventListener('DOMContentLoaded', function() {
+        var myModal = bootstrap.Modal.getOrCreateInstance('#myModal');
+        myModal.show();
+
+
+        });
 
       function generateUniqueTabId() {
         // Use current timestamp and a random number to create a unique ID
         return 'tab_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
       }
 
-      
-
-      
-      // Check if the tab ID cookie already exists
       var existingTabId = sessionStorage.getItem('tabId') || null
+
 
       if (!existingTabId) {
           // If the tab ID cookie doesn't exist, generate a new one and set the cookie
@@ -387,12 +390,10 @@
           var thing = document.getElementById("tabId");
           thing.value = uniqueTabId;
 
-          // var exportButton = document.getElementById("exportButton");
-          // exportButton.value = uniqueTabId;
-          
         } else {
           // Use the existing tab ID
           console.log('Existing Tab ID:', existingTabId);
+          
           var myLink = document.getElementById("myLink");
           myLink.href = "/" + encodeURIComponent(existingTabId);
           
@@ -408,6 +409,9 @@
           var searchButton = document.getElementById("searchButton");
           searchButton.value = existingTabId;
 
+          var clearFiltersButton = document.getElementById("clearFiltersButton");
+          clearFiltersButton.href = "/" + encodeURIComponent(existingTabId);
+
           var elements = document.getElementsByClassName("deleteButton");
           var editButtons = document.getElementsByClassName("editButton");
           var sortHeaders = document.getElementsByClassName("sortHeaders");
@@ -421,8 +425,6 @@
               // Perform actions on each element as needed
           }
 
-          // /sortByHeader/{{ display_header|replace }}
-
           for (var i = 0; i < editButtons.length; i++) {
               var editButton = editButtons[i];
               unique_id = editButton.href.split('/')[4];
@@ -432,26 +434,11 @@
 
           for (var i = 0; i < sortHeaders.length; i++) {
               var sortHeader = sortHeaders[i];
-              console.log("sortHeader", sortHeader)
+              // console.log("sortHeader", sortHeader)
               unique_id = sortHeader.href.split('/')[4];
               sortHeader.href = "/sortByHeader/" + existingTabId + "/" + unique_id
               // Perform actions on each element as needed
           }
-
-
-
-
-          document.addEventListener('DOMContentLoaded', function() {
-            var myModal = bootstrap.Modal.getOrCreateInstance('#myModal');
-            for (var i = 0; i < deleteModals.length; i++) {
-                var deleteModal = str(deleteModals[i].id);
-                console.log("deleteModal", deleteModal)
-                var currentModal = bootstrap.Modal.getOrCreateInstance('#' + deleteModal);
-                currentModal.show();
-            }
-            myModal.show();
-          });
-
           
       }
       

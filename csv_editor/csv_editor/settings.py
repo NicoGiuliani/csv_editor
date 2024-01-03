@@ -73,6 +73,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "csv_editor.wsgi.application"
 
+# Set session timeout to a longer duration if needed (default is 1209600 seconds or 2 weeks)
+SESSION_COOKIE_AGE = 1209600
+
+# Ensure that the session engine is set to the default database-backed session
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases

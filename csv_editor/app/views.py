@@ -16,6 +16,13 @@ import csv
 
 def home(request, tabId=None):
 
+    if "context" in request.session:
+        context = request.session["context"]
+    #     context = json.loads(context)
+        print("context:", context)
+        print("typecontext:", type(context))
+        tabId = context["tabId"]
+
     print("boooooooo:", tabId)
     df = None
 
@@ -473,12 +480,9 @@ def update(request):
 
 
 def upload(request):
-    print("ok")
-
     post_data = request.POST
     tabId = post_data.get("tabId")
-
-    print(tabId)
+    print("tabId:", tabId)
 
     most_recent_search_results = None
 
@@ -489,6 +493,7 @@ def upload(request):
     filename = data_file
     print("name:", data_file)
     filetype = filename.name.split(".")[1]
+    print("filetype:", filetype)
 
     df = pd.read_csv(data_file) if filetype == "csv" else pd.read_excel(data_file)
 
@@ -521,6 +526,17 @@ def upload(request):
     # print("type2:", type(ascending))
 
 
+    context = {
+        "display_headers": headers,
+        "data": json_string,
+        "initial": initial,
+        "filename": filename,
+        "tabId": tabId,
+        "searchFiltersActive": True
+        if most_recent_search_results is not None
+        else False,
+    }
+
     # use this
     current_session["last_uploaded_csv_data"] = json_object
     current_session["initial"] = str(initial)
@@ -528,19 +544,13 @@ def upload(request):
     current_session["filename"] = str(filename)
     current_session["most_recent_search_results"] = most_recent_search_results
     current_session["ascending"] = ascending
+    current_session["tabId"] = tabId
 
     request.session[tabId] = current_session
 
-    context = {
-        "display_headers": headers,
-        "data": json_string,
-        "initial": initial,
-        "filename": filename,
-        "searchFiltersActive": True
-        if most_recent_search_results is not None
-        else False,
-    }
+    print("still good")
 
+    return redirect("/" + tabId)
     return render(request, "index.html", context)
 
 
