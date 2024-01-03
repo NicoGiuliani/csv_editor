@@ -46,7 +46,7 @@
     <nav class="navbar navbar-expand-lg bg-primary p-0" data-bs-theme="dark">
       <div class="d-flex w-100" style="padding: 0 20px">
         <div class="me-auto my-auto">
-          <a class="navbar-brand h-100" href="/">
+          <a id="myLink" class="navbar-brand h-100" href="/">
             <span class="h-100">CSVEditor</span>
           </a>
           <!-- <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,6 +65,7 @@
           <div class="col-3 px-0">
             <form action="/export" method="post">
             {% csrf_token %}
+            <input type="hidden" name="exportButton" id="exportButton">
             <button class="btn btn-success w-100" style="min-width:160px;" type="submit">Export
               to CSV</button>
             </form>
@@ -99,6 +100,7 @@
         <div class="col-6">
           <form action="/search" class="d-flex">
             <input class="form-control me-sm-2 text-black" style="min-width:200px" type="search" name="query" id="query">
+            <input type="hidden" name="searchButton" id="searchButton">
             <button class="btn btn-secondary my-2 my-sm-0" type="submit">Search</button>
           </form>
         </div>
@@ -184,6 +186,7 @@
                               name="csvFile" accept=".csv, .xlsx"
                               required>
                           </div>
+                          <input type="hidden" name="tabId" id="tabId">
                           <div class="col-2 mt-auto">
                             <button class="btn btn-info w-100"
                               type="submit">Upload</button>
@@ -265,6 +268,7 @@
                 {% endif %}
                 
               </fieldset>
+              <input type="hidden" id="create_and_edit" name="create_and_edit">
               <div class="d-flex flex-row justify-content-around">
                 <div class="col-4 mt-5">
                   <button type="submit" class="btn btn-success w-100">{% if not to_edit %}Add New User{% else %}Save Changes{% endif %}</button>
@@ -296,7 +300,7 @@
                   <th scope="col">
                     {% if display_header != "Edit" and display_header != "Delete" %}
 
-                    <a href='/sortByHeader/{{ display_header|replace }}'>
+                    <a href='/sortByHeader/{{ display_header|replace }}' class="sortHeaders">
                       {{ display_header }}
                     </a>
                     {% else %}
@@ -311,13 +315,13 @@
             <tbody>
               {% for object in data %}
                 <tr class="table-default">
-                  <td><a href="/edit/{{ object.unique_index }}" class="btn btn-warning">Edit</a></td>
+                  <td><a href="/edit/{{ object.unique_index }}" class="editButton btn btn-warning">Edit</a></td>
 
                   <td>
                     <btn class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#exampleModal{{ object.unique_index }}">Delete</btn>
                   </td>
               
-                  <div class="modal" id="exampleModal{{ object.unique_index }}">
+                  <div class="modal deleteModal" id="exampleModal{{ object.unique_index }}">
                     <div class="modal-dialog" role="document">
                       <div class="modal-content" style="background-color: white;">
                         <div class="modal-header">
@@ -331,7 +335,7 @@
                         </div>
                         <div class="modal-footer">
                           <div class="col-5 px-0">
-                            <a href="/delete/{{ object.unique_index }}" class="btn btn-danger w-100">Delete</a>
+                            <a href="/delete/{{ object.unique_index }}" class="deleteButton btn btn-danger w-100">Delete</a>
                           </div>
                           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         </div>
@@ -358,11 +362,101 @@
 
 
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        var myModal = new bootstrap.Modal(document.getElementById('myModal'));
-        myModal.show();
-      });
+      
+
+      function generateUniqueTabId() {
+        // Use current timestamp and a random number to create a unique ID
+        return 'tab_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+      }
+
+      
+
+      
+      // Check if the tab ID cookie already exists
+      var existingTabId = sessionStorage.getItem('tabId') || null
+
+      if (!existingTabId) {
+          // If the tab ID cookie doesn't exist, generate a new one and set the cookie
+          var uniqueTabId = generateUniqueTabId();
+          sessionStorage.setItem('tabId', uniqueTabId);
+          console.log('Generated Tab ID:', uniqueTabId);
+
+          var myLink = document.getElementById("myLink");
+          myLink.href = "/" + encodeURIComponent(uniqueTabId);
+          
+          var thing = document.getElementById("tabId");
+          thing.value = uniqueTabId;
+
+          // var exportButton = document.getElementById("exportButton");
+          // exportButton.value = uniqueTabId;
+          
+        } else {
+          // Use the existing tab ID
+          console.log('Existing Tab ID:', existingTabId);
+          var myLink = document.getElementById("myLink");
+          myLink.href = "/" + encodeURIComponent(existingTabId);
+          
+          var thing = document.getElementById("tabId");
+          thing.value = existingTabId;
+
+          var exportButton = document.getElementById("exportButton");
+          exportButton.value = existingTabId;
+
+          var create_and_edit = document.getElementById("create_and_edit");
+          create_and_edit.value = existingTabId;
+
+          var searchButton = document.getElementById("searchButton");
+          searchButton.value = existingTabId;
+
+          var elements = document.getElementsByClassName("deleteButton");
+          var editButtons = document.getElementsByClassName("editButton");
+          var sortHeaders = document.getElementsByClassName("sortHeaders");
+          var deleteModals = document.getElementsByClassName("deleteModal");
+
+          // Iterate over the elements using a for loop
+          for (var i = 0; i < elements.length; i++) {
+              var element = elements[i];
+              unique_id = element.href.split('/')[4];
+              element.href = "/delete/" + existingTabId + "/" + unique_id
+              // Perform actions on each element as needed
+          }
+
+          // /sortByHeader/{{ display_header|replace }}
+
+          for (var i = 0; i < editButtons.length; i++) {
+              var editButton = editButtons[i];
+              unique_id = editButton.href.split('/')[4];
+              editButton.href = "/edit/" + existingTabId + "/" + unique_id
+              // Perform actions on each element as needed
+          }
+
+          for (var i = 0; i < sortHeaders.length; i++) {
+              var sortHeader = sortHeaders[i];
+              console.log("sortHeader", sortHeader)
+              unique_id = sortHeader.href.split('/')[4];
+              sortHeader.href = "/sortByHeader/" + existingTabId + "/" + unique_id
+              // Perform actions on each element as needed
+          }
+
+
+
+
+          document.addEventListener('DOMContentLoaded', function() {
+            var myModal = bootstrap.Modal.getOrCreateInstance('#myModal');
+            for (var i = 0; i < deleteModals.length; i++) {
+                var deleteModal = str(deleteModals[i].id);
+                console.log("deleteModal", deleteModal)
+                var currentModal = bootstrap.Modal.getOrCreateInstance('#' + deleteModal);
+                currentModal.show();
+            }
+            myModal.show();
+          });
+
+          
+      }
+      
     </script>
+
 
   </body>
 </html>
