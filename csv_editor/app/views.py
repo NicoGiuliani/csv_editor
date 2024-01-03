@@ -16,12 +16,12 @@ import csv
 
 def home(request, tabId=None):
 
-    if "context" in request.session:
-        context = request.session["context"]
-    #     context = json.loads(context)
-        print("context:", context)
-        print("typecontext:", type(context))
-        tabId = context["tabId"]
+    # if "context" in request.session:
+    #     context = request.session["context"]
+    # #     context = json.loads(context)
+    #     print("context:", context)
+    #     print("typecontext:", type(context))
+    #     tabId = context["tabId"]
 
     print("boooooooo:", tabId)
     df = None
@@ -70,6 +70,7 @@ def home(request, tabId=None):
             "data": json_string,
             "initial": initial,
             "filename": filename,
+            "tabId": tabId,
             "searchFiltersActive": True
             if most_recent_search_results is not None
             else False,
@@ -219,10 +220,13 @@ def delete(request, tabId, id):
         "data": json_string,
         "initial": initial,
         "filename": filename,
+        "tabId": tabId,
         "searchFiltersActive": True
         if most_recent_search_results is not None
         else False,
     }
+
+    return redirect("/" + tabId)
     return render(request, "index.html", context)
 
 
@@ -295,10 +299,12 @@ def edit(request, tabId, id):
         "to_edit": json_to_edit_string[0],
         "initial": initial,
         "filename": filename,
+        "tabId": tabId,
         "searchFiltersActive": True
         if most_recent_search_results is not None
         else False,
     }
+
     return render(request, "index.html", context)
 
 
@@ -445,7 +451,7 @@ def update(request):
     json_string = json.loads(json_object)
 
     if most_recent_search_results is not None:
-        df = pd.DataFrame(json.loads(most_recent_search_results))
+        df = pd.DataFrame(most_recent_search_results)
         df.loc[df["unique_index"] == int(i), underscored_headers] = list(
             map(lambda x: new_data[x], underscored_headers)
         )
@@ -463,26 +469,27 @@ def update(request):
 
     request.session[tabId] = current_session
 
-    print("df:", df)
+    # print("df:", df)
 
     context = {
         "data": json_string,
         "display_headers": headers,
         "initial": initial,
         "filename": filename,
+        "tabId": tabId,
         "searchFiltersActive": True
         if most_recent_search_results is not None
         else False,
     }
 
-    # return redirect("home")
-    return render(request, "index.html", context)
+    return redirect("/" + tabId)
+    # return render(request, "index.html", context)
 
 
 def upload(request):
     post_data = request.POST
     tabId = post_data.get("tabId")
-    print("tabId:", tabId)
+    print("upload start - tabId:", tabId)
 
     most_recent_search_results = None
 
@@ -491,9 +498,9 @@ def upload(request):
 
     data_file = request.FILES["csvFile"]
     filename = data_file
-    print("name:", data_file)
+    # print("name:", data_file)
     filetype = filename.name.split(".")[1]
-    print("filetype:", filetype)
+    # print("filetype:", filetype)
 
     df = pd.read_csv(data_file) if filetype == "csv" else pd.read_excel(data_file)
 
@@ -548,7 +555,7 @@ def upload(request):
 
     request.session[tabId] = current_session
 
-    print("still good")
+    print("upload end - tabId:", tabId)
 
     return redirect("/" + tabId)
     return render(request, "index.html", context)
@@ -557,8 +564,8 @@ def upload(request):
 def search(request):
     print("search")
     post_data = request.GET
-    print(post_data)
     tabId = post_data.get("searchButton")
+    print("tabId:", tabId)
     current_session = request.session[tabId]
 
     if "last_uploaded_csv_data" in current_session:
@@ -590,7 +597,7 @@ def search(request):
 
     get_data = request.GET
     query = str(get_data["query"])
-    print("query:", query)
+    # print("query:", query)
 
     json_object = df.to_json(orient="records")
     json_string = json.loads(json_object)
@@ -607,7 +614,7 @@ def search(request):
         # print("filtered:", filtered_df)
         matching_frames.append(filtered_df)
       
-    print("matching_frame", matching_frames)
+    # print("matching_frame", matching_frames)
 
     result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
     result_frame = result_frame.drop_duplicates()
@@ -634,6 +641,7 @@ def search(request):
         "data": json_string,
         "initial": initial,
         "filename": filename,
+        "tabId": tabId,
         "searchFiltersActive": True
         if most_recent_search_results is not None
         else False,
@@ -702,14 +710,15 @@ def sortByHeader(request, tabId, header):
             by=header, key=custom_sort, ascending=ascending[header]
         )
         ascending[header] = not ascending[header]
-        json_object = df_sorted.to_json(orient="records")
-        json_string = json.loads(json_object)
+        json_object = current_session["last_uploaded_csv_data"]
+        json_object_temp = df_sorted.to_json(orient="records")
+        json_string = json.loads(json_object_temp)
     else:
         df_sorted = df.sort_values(
             by=header, key=custom_sort, ascending=ascending[header]
         )
         ascending[header] = not ascending[header]
-        print(df_sorted)
+        # print(df_sorted)
         json_object = df_sorted.to_json(orient="records")
         json_string = json.loads(json_object)
 
@@ -731,6 +740,7 @@ def sortByHeader(request, tabId, header):
         "data": json_string,
         "initial": initial,
         "filename": filename,
+        "tabId": tabId,
         "searchFiltersActive": True
         if most_recent_search_results is not None
         else False,
@@ -739,7 +749,14 @@ def sortByHeader(request, tabId, header):
 
 
 def clear_all(request):
-    # use this
+    # tabId = None
+    # if "context" in request.session:
+    #     context = request.session["context"]
+    # #     context = json.loads(context)
+    #     print("context:", context)
+    #     print("typecontext:", type(context))
+    #     tabId = context["tabId"]
+    
     request.session.clear()
     return redirect("/")
 
