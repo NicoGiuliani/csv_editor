@@ -226,6 +226,13 @@ def delete(request, tabId, id):
         else False,
     }
 
+    referring_url = request.META.get('HTTP_REFERER', None)
+    redirect_path = "/search" + referring_url.split("/search")[1]
+    print("ref:", redirect_path)
+
+    if most_recent_search_results is not None:
+        return redirect(redirect_path)
+
     return redirect("/" + tabId)
     return render(request, "index.html", context)
 
@@ -380,6 +387,7 @@ def create(request):
         "display_headers": headers,
         "initial": initial,
         "filename": filename,
+        "tabId": tabId,
         "searchFiltersActive": True
         if most_recent_search_results is not None
         else False,
