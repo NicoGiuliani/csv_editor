@@ -16,14 +16,16 @@ import csv
 
 def home(request, tabId=None):
 
-    print("boooooooo:", tabId)
+    print("home:", tabId)
     df = None
+    most_recent_search_results = None
+
+    if tabId != None:
+        request.session[tabId]["most_recent_search_results"] = None
 
     if tabId in request.session:
         current_session = request.session[tabId]
-        print("what the fuck:", current_session["most_recent_search_results"])
-        current_session["most_recent_search_results"] = None
-        most_recent_search_results = None
+        print("cleared:", current_session["most_recent_search_results"])
         # print(current_session)
 
         if "last_uploaded_csv_data" in current_session:
@@ -50,8 +52,18 @@ def home(request, tabId=None):
             filename = current_session["filename"]
         else:
             filename = ""
-        
-        
+
+
+        current_session["last_uploaded_csv_data"] = current_session["last_uploaded_csv_data"]
+        current_session["initial"] = current_session["initial"]
+        current_session["headers"] = current_session["headers"]
+        current_session["filename"] = current_session["filename"]
+        current_session["most_recent_search_results"] = None
+        current_session["ascending"] = current_session["ascending"]
+        current_session["tabId"] = current_session["tabId"]
+
+        request.session[tabId] = current_session
+
     context = {}
 
     if df is not None:
@@ -68,6 +80,9 @@ def home(request, tabId=None):
             if most_recent_search_results is not None
             else False,
         }
+
+    
+
 
     return render(request, "index.html", context)
 
@@ -521,7 +536,18 @@ def upload(request):
     filetype = filename.name.split(".")[1]
     # print("filetype:", filetype)
 
-    df = pd.read_csv(data_file) if filetype == "csv" else pd.read_excel(data_file)
+    if filetype == "csv":
+        df = pd.read_csv(data_file) 
+    else:
+        df = pd.read_excel(data_file)
+        for column in df.columns:
+            try:
+                df[column] = pd.to_datetime(df[column], format='%Y-%m-%d')
+                df[column] = df[column].dt.strftime('%#m/%d/%Y')
+                # df[column] = df[column].dt.strftime('%Y-%m-%d')
+            except ValueError:
+                pass 
+
 
     json_string = df.to_json(orient="records")
     json_data = json.loads(json_string)
@@ -689,7 +715,7 @@ def sortByHeader(request, tabId, header):
 
     if "last_uploaded_csv_data" in current_session:
         df = pd.DataFrame(json.loads(current_session["last_uploaded_csv_data"]))
-        print(df)
+        # print(df)
     else:
         df = None
 
@@ -714,21 +740,24 @@ def sortByHeader(request, tabId, header):
 
     if "most_recent_search_results" in current_session:
         most_recent_search_results = current_session["most_recent_search_results"]
+        print("most_recent:", most_recent_search_results)
     else:
         most_recent_search_results = None
 
     if "ascending" in current_session:
         ascending = current_session["ascending"]
         ascending = json.loads(ascending.replace("'", "\""))
-        print("asc", type(ascending))
+        # print("asc", type(ascending))
 
     header = header.replace("%2F", "/")
 
     referring_url = request.META.get('HTTP_REFERER', None)
     print(referring_url)
 
+    # most_recent_search_results = None
     if most_recent_search_results is not None:
     # if "search" in referring_url:
+        print("search screen")
         filtered_df = pd.DataFrame(most_recent_search_results)
         df_sorted = filtered_df.sort_values(
             by=header, key=custom_sort, ascending=ascending[header]
@@ -738,6 +767,7 @@ def sortByHeader(request, tabId, header):
         json_object_temp = df_sorted.to_json(orient="records")
         json_string = json.loads(json_object_temp)
     else:
+        print("not search")
         df_sorted = df.sort_values(
             by=header, key=custom_sort, ascending=ascending[header]
         )
