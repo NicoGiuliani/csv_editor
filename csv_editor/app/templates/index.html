@@ -222,7 +222,7 @@
     <div class="accordion" id="accordionExample2">
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingOne">
-          <button class="accordion-button {% if not to_edit %}collapsed{% else %}show{% endif %}" type="button"
+          <button id="mainAccordionButton" class="accordion-button {% if not to_edit %}collapsed{% else %}show{% endif %}" type="button"
             data-bs-toggle="collapse" data-bs-target="#collapseOne"
             aria-expanded="{% if not to_edit %}false{% else %}true{% endif %}" aria-controls="collapseOne">
             {% if not to_edit %}Add New User{% else %}Edit User{% endif %}
@@ -233,7 +233,7 @@
           style>
 
           <div style="width:95%;margin:0 auto;" class="accordion-body">
-            <form method="post" {% if not to_edit %}action="/create"{% else %}action="/update"{% endif %}>
+            <form method="post" id="infoForm" {% if not to_edit %}action="/create"{% else %}action="/update"{% endif %}>
               {% csrf_token %}
               <fieldset>
                 {% if to_edit %}
@@ -275,7 +275,29 @@
                 </div>
 
                 <div class="col-4 mt-5">
-                  <a href="/" class="btn btn-warning w-100">Cancel</a>
+                  <script>
+                    function clearForm() {
+                        var form = document.getElementById("infoForm");
+                        if (form) {
+                            // Iterate through all form elements
+                            for (var i = 0; i < form.elements.length; i++) {
+                                var element = form.elements[i];
+
+                                // Check if the element is an input, textarea, or select
+                                if ((element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') && !element.readOnly) {
+                                    // Clear the value of the element
+                                    element.value = '';
+                                }
+                            }
+                        }
+                        var mainAccordionButton = document.getElementById("mainAccordionButton");
+                        mainAccordionButton.innerHTML = "Add New User"
+
+                    }
+                  </script>
+                  <btn onclick="clearForm()" class="btn btn-warning w-100" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#collapseOne"
+                  aria-expanded="{% if not to_edit %}false{% else %}true{% endif %}" aria-controls="collapseOne">Cancel</btn>
                 </div>
               </div>
             </form>
@@ -367,6 +389,7 @@
         var myModal = bootstrap.Modal.getOrCreateInstance('#myModal');
         myModal.show();
 
+      
 
         });
 
@@ -452,8 +475,24 @@
           }
           
       }
+
+
+
+
+
+
+
+
+
+
+      
       
     </script>
+
+
+
+
+    
 
 
   </body>

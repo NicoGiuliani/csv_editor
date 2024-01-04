@@ -16,23 +16,19 @@ import csv
 
 def home(request, tabId=None):
 
-    # if "context" in request.session:
-    #     context = request.session["context"]
-    # #     context = json.loads(context)
-    #     print("context:", context)
-    #     print("typecontext:", type(context))
-    #     tabId = context["tabId"]
-
     print("boooooooo:", tabId)
     df = None
 
     if tabId in request.session:
         current_session = request.session[tabId]
+        print("what the fuck:", current_session["most_recent_search_results"])
+        current_session["most_recent_search_results"] = None
+        most_recent_search_results = None
         # print(current_session)
 
         if "last_uploaded_csv_data" in current_session:
             df = pd.DataFrame(json.loads(current_session["last_uploaded_csv_data"]))
-            print("loaded:", df)
+            # print("loaded:", df)
         else:
             df = None
 
@@ -54,10 +50,7 @@ def home(request, tabId=None):
             filename = current_session["filename"]
         else:
             filename = ""
-
-        if "most_recent_search_results" in current_session:
-            most_recent_search_results = None
-            current_session["most_recent_search_results"] = None
+        
         
     context = {}
 
@@ -193,7 +186,11 @@ def delete(request, tabId, id):
     json_object = df.to_json(orient="records")
     json_string = json.loads(json_object)
 
+    referring_url = request.META.get('HTTP_REFERER', None)
+    print(referring_url)
+
     if most_recent_search_results is not None:
+    # if "search" in referring_url:
         print("filtered")
         df = pd.DataFrame(most_recent_search_results)
         df = df.drop(df[df["unique_index"] == int(id)].index)
@@ -212,8 +209,6 @@ def delete(request, tabId, id):
 
     request.session[tabId] = current_session
 
-    if len(json_string) == 0:
-            return redirect("/" + tabId)
 
     context = {
         "display_headers": headers,
@@ -227,10 +222,14 @@ def delete(request, tabId, id):
     }
 
     referring_url = request.META.get('HTTP_REFERER', None)
-    redirect_path = "/search" + referring_url.split("/search")[1]
-    print("ref:", redirect_path)
+    print(referring_url)
 
+    # if "search" in referring_url:
     if most_recent_search_results is not None:
+        if len(json_string) == 0:
+                return redirect("/" + tabId)
+        redirect_path = "/search" + referring_url.split("/search")[1]
+        print("ref:", redirect_path)
         return redirect(redirect_path)
 
     return redirect("/" + tabId)
@@ -238,12 +237,13 @@ def delete(request, tabId, id):
 
 
 def edit(request, tabId, id):
+    print("EDITTTTT")
 
     current_session = request.session[tabId]
 
     if "last_uploaded_csv_data" in current_session:
         df = pd.DataFrame(json.loads(current_session["last_uploaded_csv_data"]))
-        print(df)
+        # print(df)
     else:
         df = None
 
@@ -274,17 +274,17 @@ def edit(request, tabId, id):
     print("edit")
     print("id:", id)
 
-    # this is made a string for now, may have to change later
     to_edit = df.loc[df["unique_index"] == int(id)]
     print(to_edit)
 
-    # last_uploaded_csv_data = df
     json_object = df.to_json(orient="records")
     json_string = json.loads(json_object)
 
     to_edit_json_object = to_edit.to_json(orient="records")
     json_to_edit_string = json.loads(to_edit_json_object)
-    # print(json_to_edit_string)
+
+    # referring_url = request.META.get('HTTP_REFERER', None)
+    # print(referring_url)
 
     if most_recent_search_results is not None:
         json_string = most_recent_search_results
@@ -298,8 +298,6 @@ def edit(request, tabId, id):
 
     request.session[tabId] = current_session
 
-    # print("edit:", current_session["last_uploaded_csv_data"])
-
     context = {
         "display_headers": headers,
         "data": json_string,
@@ -312,16 +310,26 @@ def edit(request, tabId, id):
         else False,
     }
 
+    referring_url = request.META.get('HTTP_REFERER', None)
+
+    # if most_recent_search_results is not None:
+    #     redirect_path = "/search" + referring_url.split("/search")[1]
+    #     print("ref:", redirect_path)
+    #     return redirect(redirect_path)
+
+
+    # return redirect("/" + tabId)
+
     return render(request, "index.html", context)
 
 
 def create(request):
 
     if request.method == "POST":
-        print("updating...")
         post_data = request.POST
         # print(post_data)
         tabId = post_data.get("create_and_edit")
+        print("tabId:", tabId)
 
     current_session = request.session[tabId]
 
@@ -353,11 +361,11 @@ def create(request):
 
     most_recent_search_results = None
 
-    post_data = request.POST
+    # post_data = request.POST
     new_data = {}
 
     for entry in post_data:
-        if entry == "csrfmiddlewaretoken":
+        if entry == "csrfmiddlewaretoken" or entry == "create_and_edit":
             continue
         new_data[entry] = post_data.get(entry)
 
@@ -458,14 +466,18 @@ def update(request):
     json_object = df.to_json(orient="records")
     json_string = json.loads(json_object)
 
+    referring_url = request.META.get('HTTP_REFERER', None)
+    print(referring_url)
+
     if most_recent_search_results is not None:
+    # if "search" in referring_url:
         df = pd.DataFrame(most_recent_search_results)
         df.loc[df["unique_index"] == int(i), underscored_headers] = list(
             map(lambda x: new_data[x], underscored_headers)
         )
         df.loc[df["unique_index"] == i, "unique_index"] = int(i)
-        json_object = df.to_json(orient="records")
-        json_string = json.loads(json_object)
+        json_object_temp = df.to_json(orient="records")
+        json_string = json.loads(json_object_temp)
         most_recent_search_results = json_string
 
     # use this
@@ -480,7 +492,7 @@ def update(request):
     # print("df:", df)
 
     context = {
-        "data": json_string,
+        "data": json_string if most_recent_search_results is None else most_recent_search_results,
         "display_headers": headers,
         "initial": initial,
         "filename": filename,
@@ -490,8 +502,7 @@ def update(request):
         else False,
     }
 
-    return redirect("/" + tabId)
-    # return render(request, "index.html", context)
+    return render(request, "index.html", context)
 
 
 def upload(request):
@@ -619,16 +630,17 @@ def search(request):
             continue
         # print(header)
         filtered_df = df.loc[df[header].str.contains(query, case=False)]
-        # print("filtered:", filtered_df)
-        matching_frames.append(filtered_df)
+        if not filtered_df.empty:
+            print("filtered:", filtered_df)
+            matching_frames.append(filtered_df)
       
     # print("matching_frame", matching_frames)
-
-    result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
-    result_frame = result_frame.drop_duplicates()
-    json_object = result_frame.to_json(orient="records")
-    json_string = json.loads(json_object)
-    if len(result_frame) == 0:
+    if len(matching_frames) > 0:
+        result_frame = pd.concat(matching_frames, axis=0, ignore_index=True)
+        result_frame = result_frame.drop_duplicates()
+        json_object = result_frame.to_json(orient="records")
+        json_string = json.loads(json_object)
+    else:
         messages.error(request, 'No results found.')
         #  include popup saying no results or something
         return redirect("/" + tabId)
@@ -712,7 +724,11 @@ def sortByHeader(request, tabId, header):
 
     header = header.replace("%2F", "/")
 
+    referring_url = request.META.get('HTTP_REFERER', None)
+    print(referring_url)
+
     if most_recent_search_results is not None:
+    # if "search" in referring_url:
         filtered_df = pd.DataFrame(most_recent_search_results)
         df_sorted = filtered_df.sort_values(
             by=header, key=custom_sort, ascending=ascending[header]
