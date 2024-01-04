@@ -20,10 +20,8 @@ def home(request, tabId=None):
     df = None
     most_recent_search_results = None
 
-    if tabId != None:
+    if tabId != None and tabId in request.session:
         request.session[tabId]["most_recent_search_results"] = None
-
-    if tabId in request.session:
         current_session = request.session[tabId]
         print("cleared:", current_session["most_recent_search_results"])
         # print(current_session)
